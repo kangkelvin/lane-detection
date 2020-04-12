@@ -40,9 +40,11 @@ void laneDetection::VideoParser::display(std::string filename) {
       std::cout << "End of Video\n";
       break;
     }
+    // _map_frames.emplace(filename, frame);
+
+    VideoParser::cannyDetector(frame, frame);
 
     imshow(filename, frame);
-    _map_frames.emplace(filename, frame);
 
     if (cv::waitKey(10) == 27) {
       std::cout << "break\n";
@@ -55,4 +57,10 @@ void laneDetection::VideoParser::display(std::string filename) {
   }
   video.release();
   destroyWindow(filename);
+}
+
+void laneDetection::VideoParser::cannyDetector(Mat &input, Mat &output) {
+  cvtColor(input, output, COLOR_RGB2GRAY); // change to grayscale
+  GaussianBlur(input, output, Size(5,5), 0.0); // apply blur
+  Canny(input, output, 50.0, 150.0); // detects edges
 }
