@@ -14,7 +14,7 @@ laneDetection::VideoParser::~VideoParser() {
 void laneDetection::VideoParser::run() {
   for (std::size_t i = 0; i < _filenames.size(); ++i) {
     _threads.emplace_back(
-        std::thread(&VideoParser::display, this, _filenames[i]));
+        std::thread(&VideoParser::process, this, _filenames[i]));
   }
 }
 
@@ -22,7 +22,7 @@ Mat laneDetection::VideoParser::getFrame(std::string filename) {
   return _map_frames.at(filename);
 }
 
-void laneDetection::VideoParser::display(std::string filename) {
+void laneDetection::VideoParser::process(std::string filename) {
   VideoCapture video(filename);
   cv::namedWindow(filename, cv::WINDOW_NORMAL);
 
@@ -93,12 +93,16 @@ void laneDetection::VideoParser::calcHoughLines(Mat &input) {
 
   for (size_t i = 0; i < lines.size(); ++i) {
     // threads.emplace_back(std::thread(&VideoParser::calcGradientIntercept,
-    //                                  this, lines[i], left_lanes, right_lanes));
+    //                                  this, lines[i], left_lanes,
+    //                                  right_lanes));
     calcGradientIntercept(lines[i], left_lanes, right_lanes);
   }
 
   // std::for_each(threads.begin(), threads.end(),
   //               [](std::thread &t) { t.join(); });
+
+  Vec2f avg_left_lane = calcVec2fAverage(left_lanes);
+  Vec2f avg_right_lane = calcVec2fAverage(right_lanes);
 
   std::cout << "LEFT\n#######################"
                "######\n";
@@ -123,3 +127,18 @@ void laneDetection::VideoParser::calcGradientIntercept(
   }
 }
 
+Vec2f laneDetection::VideoParser::calcVec2fAverage(std::vector<Vec2f> &vec) {
+  Vec2f output;
+  if (!vec.empty()) {
+    float first_average = 0;
+    float second_average = 0;
+    for (int i = 0; i < vec.size(); ++i) {
+      first_average += vec[i][0];
+      second_average += vec[i][1];
+    }
+    first_average /= vec.size();
+    second_average /= vec.size();
+    output = Vec2f(first_average, second_average);
+  }
+  return output;
+}
