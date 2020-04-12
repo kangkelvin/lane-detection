@@ -43,6 +43,7 @@ void laneDetection::VideoParser::display(std::string filename) {
     // _map_frames.emplace(filename, frame);
 
     VideoParser::cannyDetector(frame, frame);
+    VideoParser::segmentRoi(frame, frame);
 
     imshow(filename, frame);
 
@@ -62,5 +63,21 @@ void laneDetection::VideoParser::display(std::string filename) {
 void laneDetection::VideoParser::cannyDetector(Mat &input, Mat &output) {
   cvtColor(input, output, COLOR_RGB2GRAY); // change to grayscale
   GaussianBlur(input, output, Size(5,5), 0.0); // apply blur
-  Canny(input, output, 50.0, 150.0); // detects edges
+  Canny(input, output, 150.0, 150.0); // detects edges
 }
+
+void laneDetection::VideoParser::segmentRoi(Mat &input, Mat &output) {
+  int frame_height = input.rows;
+  int frame_width = input.cols;
+  int frame_type = input.type();
+  Mat mask = Mat::zeros(Size(frame_width, frame_height), frame_type);
+  Point2i polygon[1][3];
+  polygon[0][0] = Point2i(frame_width*0.2,frame_height*0.9);
+  polygon[0][1] = Point2i(frame_width*0.45,frame_height*0.6);
+  polygon[0][2] = Point2i(frame_width*0.7,frame_height*0.9);
+  const Point2i* ppt[1] = {polygon[0]};
+  int npt[] = {3};
+  fillPoly(mask, ppt, npt, 1, 255);
+  bitwise_and(input, mask, output);
+}
+
