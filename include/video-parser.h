@@ -1,42 +1,60 @@
 #pragma once
 
-#include <chrono>
+#include <ros/ros.h>
 #include <algorithm>
+#include <chrono>
 #include <iostream>
-#include <mutex>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
+#include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.h>
 #include <string>
 #include <thread>
+#include <memory>
 #include <vector>
 
 using namespace cv;
+using std::string;
+using std::vector;
 
 namespace laneDetection {
 
 class VideoParser {
  public:
-  VideoParser(std::vector<std::string> filenames);
-  ~VideoParser();
-
-  void run();
-  void process(std::string filename);
-  Mat getFrame(std::string filename);
-  void cannyDetector(Mat &input, Mat &output);
-  void segmentRoi(Mat &input, Mat &output);
-  void calcHoughLines(Mat &input);
-  void calcGradientIntercept(Vec4i &line, std::vector<Vec2f> &left_lanes,
-                                  std::vector<Vec2f> &right_lanes);
-  Vec2f calcVec2fAverage(std::vector<Vec2f> &vec);
-  Mat visualiseLines(Vec2f &left_lane, Vec2f &right_lane);
+  VideoParser();
+  ~VideoParser() {};
+  ros::NodeHandle nh;
 
  private:
-  std::vector<std::string> _filenames;
-  std::vector<std::thread> _threads;
-  std::unordered_map<std::string, Mat> _map_frames;
+  ros::NodeHandle private_nh;
+
+  ros::Timer _video_timer;
+
+  image_transport::ImageTransport it;
+  image_transport::Publisher _output_img_pub;
+
+  string _video_filename;
+  string _output_img_topic;
+
+  std::unique_ptr<VideoCapture> _video;
+  Mat _frame;
+  sensor_msgs::ImagePtr _output_img;
+
+  int _video_fps;
+  int _video_delay;
+  int _frame_width;
+  int _frame_height;
+  int _frame_type;
+
+  bool _is_stereo_img;
+
+  void getRosParam();
+  void getVidParam();
+  void setPubSub();
+  void pubFrame(const ros::TimerEvent& timer_event);
 };
 
 }  // namespace laneDetection

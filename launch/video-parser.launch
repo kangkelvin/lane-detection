@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="video_parser_node" pkg="lane-detection" type="video-parser" >
+    <param name="video_filename" value="$(find lane-detection)/data/WIN_20200214_06_05_29_Pro.mp4"/>
+    <param name="output_img_topic" value="/img"/>
+    <param name="is_stereo_img" value="true"/>
+  </node>
+</launch>
