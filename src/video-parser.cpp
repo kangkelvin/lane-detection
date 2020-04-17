@@ -19,7 +19,6 @@ void VideoParser::pubFrame(const ros::TimerEvent& timer_event) {
     if (_is_stereo_img) {
       _frame = _frame(Range::all(), Range(1, _frame_width / 2));
     }
-    // waitKey(_video_delay);
     _output_img =
         cv_bridge::CvImage(std_msgs::Header(), "bgr8", _frame).toImageMsg();
     _output_img_pub.publish(_output_img);
