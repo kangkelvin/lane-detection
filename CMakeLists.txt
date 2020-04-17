@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(lane-detection)
+project(lane_detection)
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++17 -pthread")
 
 set(OpenCV_DIR /usr/share/OpenCV)
@@ -7,17 +7,23 @@ set(OpenCV_DIR /usr/share/OpenCV)
 find_package(catkin REQUIRED COMPONENTS
   OpenCV REQUIRED
   image_transport
+  message_generation
   cv_bridge
   roscpp
   rospy
   std_msgs
 )
 
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  LaneInfo.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -31,5 +37,5 @@ add_definitions(${OpenCV_DEFINITIONS})
 # add_executable(lane-detection ${project_SRCS})
 # target_link_libraries(lane-detection ${OpenCV_LIBRARIES})
 
-add_executable(video-parser src/video-parser.cpp)
-target_link_libraries(video-parser ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
+add_executable(video_parser src/video-parser.cpp)
+target_link_libraries(video_parser ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})

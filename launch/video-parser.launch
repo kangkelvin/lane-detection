@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <node name="video_parser_node" pkg="lane-detection" type="video-parser" >
+  <node name="video_parser_node" pkg="lane_detection" type="video_parser" >
     <param name="is_from_camera" value="true"/>
     <param name="camera_id" value="0"/>  
     <param name="video_filename" value="$(find lane-detection)/data/WIN_20200214_06_05_29_Pro.mp4"/>

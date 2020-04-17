@@ -5,7 +5,7 @@ using namespace laneDetection;
 using std::string;
 using std::vector;
 
-VideoParser::VideoParser() : private_nh("~"), it(nh) {
+VideoParser::VideoParser() : private_nh("~"), _img_transport_handle(nh) {
   getRosParam();
   if (_is_from_camera) {
     _video = std::make_unique<VideoCapture>(_camera_id);
@@ -50,7 +50,7 @@ void VideoParser::getVidParam() {
 }
 
 void VideoParser::setPubSub() {
-  _output_img_pub = it.advertise(_output_img_topic, 1);
+  _output_img_pub = _img_transport_handle.advertise(_output_img_topic, 1);
 }
 
 int main(int argc, char** argv) {

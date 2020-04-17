@@ -30,7 +30,7 @@ class VideoParser {
 
   ros::Timer _video_timer;
 
-  image_transport::ImageTransport it;
+  image_transport::ImageTransport _img_transport_handle;
   image_transport::Publisher _output_img_pub;
 
   string _video_filename;

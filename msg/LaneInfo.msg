@@ -1,0 +1,4 @@
+float64 left_lane_gradient
+float64 left_lane_intercept
+float64 right_lane_gradient
+float64 right_lane_intercept
