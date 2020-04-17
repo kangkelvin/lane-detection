@@ -1,9 +1,6 @@
 #pragma once
 
 #include <ros/ros.h>
-#include <algorithm>
-#include <chrono>
-#include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -44,12 +41,13 @@ class VideoParser {
   sensor_msgs::ImagePtr _output_img;
 
   int _video_fps;
-  int _video_delay;
   int _frame_width;
   int _frame_height;
   int _frame_type;
+  int _camera_id;
 
   bool _is_stereo_img;
+  bool _is_from_camera;
 
   void getRosParam();
   void getVidParam();
