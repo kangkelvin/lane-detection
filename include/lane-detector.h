@@ -53,11 +53,9 @@ class LaneDetector {
   double _hough_thershold;
   double _hough_min_line_length;
   double _hough_max_line_gap;
-  
-  int _video_fps;
+
   int _frame_width;
   int _frame_height;
-  int _frame_type;
   
   Vec2d _left_lane_avg_param;
   Vec2d _right_lane_avg_param;

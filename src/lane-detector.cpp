@@ -7,7 +7,6 @@ using std::vector;
 
 LaneDetector::LaneDetector() : private_nh("~"), _img_transport_handle(nh) {
   getRosParam();
-  getVidParam();
   setPubSub();
 }
 
@@ -19,8 +18,8 @@ LaneDetector::~LaneDetector() {
 
 void LaneDetector::detectLane(const sensor_msgs::Image &msg) {
   _original_img = cv_bridge::toCvCopy(msg, "bgr8")->image;
-  _processed_img = cv_bridge::toCvCopy(msg, "bgr8")->image;
-  
+  _original_img.copyTo(_processed_img);
+
   cannyDetector(_processed_img, _processed_img);
   segmentRoi(_processed_img, _processed_img);
   calcHoughLines(_processed_img, _left_lane_avg_param, _right_lane_avg_param);
@@ -38,7 +37,9 @@ void LaneDetector::cannyDetector(Mat &input, Mat &output) {
 }
 
 void LaneDetector::segmentRoi(Mat &input, Mat &output) {
-  Mat mask = Mat::zeros(Size(_frame_width, _frame_height), _frame_type);
+  getVidParam();
+  int frame_type = input.type();
+  Mat mask = Mat::zeros(Size(_frame_width, _frame_height), frame_type);
   Point2i polygon[1][3];
   polygon[0][0] = Point2i(_frame_width * _roi_btm_left_ratio[0],
                           _frame_height * _roi_btm_left_ratio[1]);
@@ -156,9 +157,8 @@ void LaneDetector::getRosParam() {
 }
 
 void LaneDetector::getVidParam() {
-  _frame_height = _original_img.rows;
-  _frame_width = _original_img.cols;
-  _frame_type = _original_img.type();
+  _frame_height = _processed_img.rows;
+  _frame_width = _processed_img.cols;
 }
 
 void LaneDetector::setPubSub() {
