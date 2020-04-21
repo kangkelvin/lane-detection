@@ -25,11 +25,11 @@ void LaneDetector::detectLane(const sensor_msgs::Image &msg) {
   segmentRoi(_processed_img, _processed_img);
   calcHoughLines(_processed_img, _left_lane_avg_param, _right_lane_avg_param);
   overlayLanesToImg(_original_img, _left_lane_avg_param, _right_lane_avg_param);
-  
+
   _output_img = cv_bridge::CvImage(std_msgs::Header(), "bgr8", _original_img)
                     .toImageMsg();
   _working_img = cv_bridge::CvImage(std_msgs::Header(), "mono8", _processed_img)
-                    .toImageMsg();
+                     .toImageMsg();
   _output_img_pub.publish(_output_img);
   _working_img_pub.publish(_working_img);
 }
@@ -74,7 +74,7 @@ void LaneDetector::calcHoughLines(Mat &input, Vec2d &left_lane_avg_param,
     // threads.emplace_back(std::thread(&VideoParser::calcGradientIntercept,
     //                                  this, lines[i], left_lanes,
     //                                  right_lanes));
-    calcGradientIntercept(lines[i], left_lanes, right_lanes);
+    // calcGradientIntercept(lines[i], left_lanes, right_lanes);
   }
 
   // std::for_each(threads.begin(), threads.end(),
@@ -99,17 +99,8 @@ void LaneDetector::calcGradientIntercept(Vec4i &line,
   double intercept = line[1] - gradient * line[0];
   Vec2d output = {gradient, intercept};
   if (gradient > 0) {
-    // if (withinRange(gradient, 0.8, 1.4) && withinRange(intercept, -700,
-    // -100)) {
-    //   right_lanes.push_back(output);
-    // }
     right_lanes.push_back(output);
-
   } else {
-    // if (withinRange(gradient, -1.2, -0.7) &&
-    //     withinRange(intercept, 1300, 1800)) {
-    //   left_lanes.push_back(output);
-    // }
     left_lanes.push_back(output);
   }
 }
