@@ -25,7 +25,6 @@ namespace laneDetection {
 class LaneDetector {
  public:
   LaneDetector();
-  ~LaneDetector();
 
   ros::NodeHandle nh;
 
@@ -79,8 +78,8 @@ class LaneDetector {
   void segmentRoi(Mat &input, Mat &output);
   void calcHoughLines(Mat &input, Vec2d &left_lane_avg_param, Vec2d &right_lane_avg_param);
   void overlayLanesToImg(Mat &input, Vec2d &left_lane_avg_param, Vec2d &right_lane_avg_param);
-  void calcGradientIntercept(Vec4i &line, std::vector<Vec2d> &left_lanes,
-                             std::vector<Vec2d> &right_lanes);
+  void calcGradientIntercept(Vec4i line, std::vector<Vec2d> &left_lanes,
+                             std::vector<Vec2d> &right_lanes, std::mutex &mtx);
   Vec2d calcVec2dAverage(std::vector<Vec2d> &vec);
   Mat getVisualisedLines(Mat &input, Vec2d &lane_info);
   bool withinRange(double input, double lower_bound, double upper_bound);

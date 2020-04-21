@@ -10,12 +10,6 @@ LaneDetector::LaneDetector() : private_nh("~"), _img_transport_handle(nh) {
   setPubSub();
 }
 
-LaneDetector::~LaneDetector() {
-  // set up thread barrier before this object is destroyed
-  std::for_each(_threads.begin(), _threads.end(),
-                [](std::thread &t) { t.join(); });
-}
-
 void LaneDetector::detectLane(const sensor_msgs::Image &msg) {
   _original_img = cv_bridge::toCvCopy(msg, "bgr8")->image;
   resize(_original_img, _original_img, Size(1280, 720));
@@ -67,18 +61,16 @@ void LaneDetector::calcHoughLines(Mat &input, Vec2d &left_lane_avg_param,
   std::vector<Vec2d> left_lanes;
   std::vector<Vec2d> right_lanes;
   std::vector<std::thread> threads;
-
   std::mutex mtx;
 
   for (size_t i = 0; i < lines.size(); ++i) {
-    // threads.emplace_back(std::thread(&VideoParser::calcGradientIntercept,
-    //                                  this, lines[i], left_lanes,
-    //                                  right_lanes));
-    // calcGradientIntercept(lines[i], left_lanes, right_lanes);
+    threads.emplace_back(std::thread(&LaneDetector::calcGradientIntercept, this,
+                                     lines[i], std::ref(left_lanes),
+                                     std::ref(right_lanes), std::ref(mtx)));
   }
 
-  // std::for_each(threads.begin(), threads.end(),
-  //               [](std::thread &t) { t.join(); });
+  std::for_each(threads.begin(), threads.end(),
+                [](std::thread &t) { t.join(); });
 
   left_lane_avg_param = calcVec2dAverage(left_lanes);
   right_lane_avg_param = calcVec2dAverage(right_lanes);
@@ -92,15 +84,18 @@ void LaneDetector::overlayLanesToImg(Mat &input, Vec2d &left_lane_avg_param,
   addWeighted(input, 0.9, left_line, 1.0, 0.5, input);
 }
 
-void LaneDetector::calcGradientIntercept(Vec4i &line,
+void LaneDetector::calcGradientIntercept(Vec4i line,
                                          std::vector<Vec2d> &left_lanes,
-                                         std::vector<Vec2d> &right_lanes) {
+                                         std::vector<Vec2d> &right_lanes,
+                                         std::mutex &mtx) {
   double gradient = (line[3] - line[1]) * 1.0 / (line[2] - line[0]);
   double intercept = line[1] - gradient * line[0];
   Vec2d output = {gradient, intercept};
   if (gradient > 0) {
+    const std::lock_guard<std::mutex> lock(mtx);
     right_lanes.push_back(output);
   } else {
+    const std::lock_guard<std::mutex> lock(mtx);
     left_lanes.push_back(output);
   }
 }
