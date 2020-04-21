@@ -33,11 +33,11 @@ void VideoParser::pubFrame(const ros::TimerEvent& timer_event) {
 }
 
 void VideoParser::getRosParam() {
-  ROS_ASSERT(private_nh.getParam("is_from_camera", _is_from_camera));
-  ROS_ASSERT(private_nh.getParam("camera_id", _camera_id));
+  ROS_ASSERT(private_nh.param("is_from_camera", _is_from_camera, true));
+  ROS_ASSERT(private_nh.param("camera_id", _camera_id, 0));
   ROS_ASSERT(private_nh.getParam("video_filename", _video_filename));
   ROS_ASSERT(private_nh.getParam("output_img_topic", _output_img_topic));
-  ROS_ASSERT(private_nh.getParam("is_stereo_img", _is_stereo_img));
+  ROS_ASSERT(private_nh.param("is_stereo_img", _is_stereo_img, false));
 }
 
 void VideoParser::getVidParam() {

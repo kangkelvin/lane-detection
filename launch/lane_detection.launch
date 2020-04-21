@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="video_parser_node" pkg="lane_detection" type="video_parser" >
+    <param name="is_from_camera" value="false"/>
+    <param name="camera_id" value="0"/>  
+    <param name="video_filename" value="$(find lane_detection)/data/WIN_20200214_06_05_29_Pro.mp4"/>
+    <param name="output_img_topic" value="/img"/>
+    <param name="is_stereo_img" value="true"/>
+  </node>
+
+  <node name="lane_detector_node" pkg="lane_detection" type="lane_detector" >
+    <param name="input_img_topic" value="/img"/>
+    <param name="output_img_topic" value="/img_with_lanes"/>
+  </node>
+</launch>

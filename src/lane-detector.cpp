@@ -5,7 +5,11 @@ using namespace laneDetection;
 using std::string;
 using std::vector;
 
-LaneDetector::LaneDetector() : private_nh("~") {}
+LaneDetector::LaneDetector() : private_nh("~"), _img_transport_handle(nh) {
+  getRosParam();
+  getVidParam();
+  setPubSub();
+}
 
 LaneDetector::~LaneDetector() {
   // set up thread barrier before this object is destroyed
@@ -14,39 +18,45 @@ LaneDetector::~LaneDetector() {
 }
 
 void LaneDetector::detectLane(const sensor_msgs::Image &msg) {
-  _original_img = cv_bridge::toCvCopy(msg, "passthrough")->image;
-  _original_img.copyTo(_processed_img);
-
-  LaneDetector::cannyDetector(frame, frame);
-  LaneDetector::segmentRoi(frame, frame);
-  Mat lane_lines = LaneDetector::calcHoughLines(frame, original_frame);
-  // addWeighted(original_frame, 0.9, lane_lines, 1, 1, original_frame);
+  _original_img = cv_bridge::toCvCopy(msg, "bgr8")->image;
+  _processed_img = cv_bridge::toCvCopy(msg, "bgr8")->image;
+  
+  cannyDetector(_processed_img, _processed_img);
+  segmentRoi(_processed_img, _processed_img);
+  calcHoughLines(_processed_img, _left_lane_avg_param, _right_lane_avg_param);
+  overlayLanesToImg(_original_img, _left_lane_avg_param, _right_lane_avg_param);
+  _output_img = cv_bridge::CvImage(std_msgs::Header(), "mono8", _processed_img)
+                    .toImageMsg();
+  _output_img_pub.publish(_output_img);
 }
 
-void laneDetection::LaneDetector::cannyDetector(Mat &input, Mat &output) {
-  cvtColor(input, output, COLOR_RGB2GRAY);       // change to grayscale
-  GaussianBlur(input, output, Size(5, 5), 0.0);  // apply blur
-  Canny(input, output, 150.0, 150.0);            // detects edges
+void LaneDetector::cannyDetector(Mat &input, Mat &output) {
+  cvtColor(input, output, COLOR_RGB2GRAY);  // change to grayscale
+  GaussianBlur(input, output, Size(_gauss_blur_size[0], _gauss_blur_size[1]),
+               _gauss_blur_sigmaX);                            // apply blur
+  Canny(input, output, _canny_threshold1, _canny_threshold2);  // detects edges
 }
 
-void laneDetection::LaneDetector::segmentRoi(Mat &input, Mat &output) {
-  int frame_height = input.rows;
-  int frame_width = input.cols;
-  int frame_type = input.type();
-  Mat mask = Mat::zeros(Size(frame_width, frame_height), frame_type);
+void LaneDetector::segmentRoi(Mat &input, Mat &output) {
+  Mat mask = Mat::zeros(Size(_frame_width, _frame_height), _frame_type);
   Point2i polygon[1][3];
-  polygon[0][0] = Point2i(frame_width * 0.2, frame_height * 0.9);
-  polygon[0][1] = Point2i(frame_width * 0.45, frame_height * 0.6);
-  polygon[0][2] = Point2i(frame_width * 0.7, frame_height * 0.9);
+  polygon[0][0] = Point2i(_frame_width * _roi_btm_left_ratio[0],
+                          _frame_height * _roi_btm_left_ratio[1]);
+  polygon[0][1] = Point2i(_frame_width * _roi_top_ratio[0],
+                          _frame_height * _roi_top_ratio[1]);
+  polygon[0][2] = Point2i(_frame_width * _roi_btm_right_ratio[0],
+                          _frame_height * _roi_btm_right_ratio[1]);
   const Point2i *ppt[1] = {polygon[0]};
   int npt[] = {3};
   fillPoly(mask, ppt, npt, 1, 255);
   bitwise_and(input, mask, output);
 }
 
-void laneDetection::LaneDetector::calcHoughLines(Mat &input, Mat &output) {
+void LaneDetector::calcHoughLines(Mat &input, Vec2d &left_lane_avg_param,
+                                  Vec2d &right_lane_avg_param) {
   std::vector<Vec4i> lines;
-  HoughLinesP(input, lines, 1, CV_PI / 180, 50, 50, 10);
+  HoughLinesP(input, lines, _hough_rho, _hough_theta, _hough_thershold,
+              _hough_min_line_length, _hough_max_line_gap);
 
   std::vector<Vec2d> left_lanes;
   std::vector<Vec2d> right_lanes;
@@ -64,19 +74,21 @@ void laneDetection::LaneDetector::calcHoughLines(Mat &input, Mat &output) {
   // std::for_each(threads.begin(), threads.end(),
   //               [](std::thread &t) { t.join(); });
 
-  Vec2d avg_left_lane = calcVec2dAverage(left_lanes);
-  Vec2d avg_right_lane = calcVec2dAverage(right_lanes);
-
-  Mat left_line = getVisualisedLines(original, avg_left_lane);
-  Mat right_line = getVisualisedLines(original, avg_right_lane);
-
-  add(left_line, right_line, left_line);
-  return right_line;
+  left_lane_avg_param = calcVec2dAverage(left_lanes);
+  right_lane_avg_param = calcVec2dAverage(right_lanes);
 }
 
-void laneDetection::LaneDetector::calcGradientIntercept(
-    Vec4i &line, std::vector<Vec2d> &left_lanes,
-    std::vector<Vec2d> &right_lanes) {
+void LaneDetector::overlayLanesToImg(Mat &input, Vec2d &left_lane_avg_param,
+                                     Vec2d &right_lane_avg_param) {
+  Mat left_line = getVisualisedLines(input, left_lane_avg_param);
+  Mat right_line = getVisualisedLines(input, right_lane_avg_param);
+  add(left_line, right_line, left_line);
+  addWeighted(input, 0.9, left_line, 1, 1, input);
+}
+
+void LaneDetector::calcGradientIntercept(Vec4i &line,
+                                         std::vector<Vec2d> &left_lanes,
+                                         std::vector<Vec2d> &right_lanes) {
   double gradient = (line[3] - line[1]) * 1.0 / (line[2] - line[0]);
   double intercept = line[1] - gradient * line[0];
   Vec2d output = {gradient, intercept};
@@ -128,18 +140,19 @@ bool LaneDetector::withinRange(double input, double lower_bound,
 void LaneDetector::getRosParam() {
   ROS_ASSERT(private_nh.getParam("input_img_topic", _input_img_topic));
   ROS_ASSERT(private_nh.getParam("output_img_topic", _output_img_topic));
-  ROS_ASSERT(private_nh.getParam("lane_result_topic", _lane_result_topic));
 
   private_nh.param("gauss_blur_size", _gauss_blur_size, {5, 5});
   private_nh.param("gauss_blur_sigmaX", _gauss_blur_sigmaX, 0.0);
-  private_nh.param("canny_threshold1", _canny_threshold1, 0.0);
-  private_nh.param("canny_threshold2", _canny_threshold2, 0.0);
-  private_nh.param("roi_polygon", _roi_polygon, {0.0, 0.0, 0.0});
-  private_nh.param("hough_rho", _hough_rho, 0.0);
-  private_nh.param("hough_theta", _hough_theta, 0.0);
-  private_nh.param("hough_thershold", _hough_thershold, 0.0);
-  private_nh.param("hough_min_line_length", _hough_min_line_length, 0.0);
-  private_nh.param("hough_max_line_gap", _hough_max_line_gap, 0.0);
+  private_nh.param("canny_threshold1", _canny_threshold1, 150.0);
+  private_nh.param("canny_threshold2", _canny_threshold2, 150.0);
+  private_nh.param("roi_btm_left_ratio", _roi_btm_left_ratio, {0.2, 0.9});
+  private_nh.param("roi_top_ratio", _roi_top_ratio, {0.45, 0.6});
+  private_nh.param("roi_btm_right_ratio", _roi_btm_right_ratio, {0.7, 0.9});
+  private_nh.param("hough_rho", _hough_rho, 1.0);
+  private_nh.param("hough_theta", _hough_theta, CV_PI / 180);
+  private_nh.param("hough_thershold", _hough_thershold, 50.0);
+  private_nh.param("hough_min_line_length", _hough_min_line_length, 50.0);
+  private_nh.param("hough_max_line_gap", _hough_max_line_gap, 10.0);
 }
 
 void LaneDetector::getVidParam() {
@@ -149,10 +162,16 @@ void LaneDetector::getVidParam() {
 }
 
 void LaneDetector::setPubSub() {
-  _input_img_sub = nh.subscribe(_input_img_topic, 1, &LaneDetector::detectLane, this);
-  _output_img_pub = nh.advertise<sensor_msgs::Image>(_output_img_topic, 1);
-  _lane_result_pub
-
+  _input_img_sub =
+      nh.subscribe(_input_img_topic, 1, &LaneDetector::detectLane, this);
+  _output_img_pub = _img_transport_handle.advertise(_output_img_topic, 1);
 }
 
-int main() { return 0; }
+int main(int argc, char** argv) {
+  ros::init(argc, argv, "lane_detector_node");
+  laneDetection::LaneDetector lane_detector_obj;
+  while (ros::ok()) {
+    ros::spinOnce();
+  }
+  return 0;
+}

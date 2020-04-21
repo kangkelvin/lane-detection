@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ros.h>
+#include <ros/ros.h>
 #include <algorithm>
 #include <iostream>
 #include <mutex>
@@ -10,14 +10,15 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.h>
 #include <string>
 #include <thread>
 #include <vector>
-#include <lane_detector/LaneInfo.h>
 
 #include "sensor_msgs/Image.h"
 
 using namespace cv;
+using std::vector;
 
 namespace laneDetection {
 
@@ -35,14 +36,17 @@ class LaneDetector {
 
   Mat _original_img;
   Mat _processed_img;
+  sensor_msgs::ImagePtr _output_img;
 
-  double _gauss_blur_size[2];
+  vector<int> _gauss_blur_size;
   double _gauss_blur_sigmaX;
 
   double _canny_threshold1;
   double _canny_threshold2;
 
-  double _roi_polygon[1][3];
+  vector<double> _roi_btm_left_ratio;
+  vector<double> _roi_top_ratio;
+  vector<double> _roi_btm_right_ratio;
 
   double _hough_rho;
   double _hough_theta;
@@ -60,10 +64,10 @@ class LaneDetector {
 
   std::string _input_img_topic;
   std::string _output_img_topic;
-  std::string _lane_result_topic;
   ros::Subscriber _input_img_sub;
-  ros::Publisher _output_img_pub;
-  ros::Publisher _lane_result_pub;
+
+  image_transport::ImageTransport _img_transport_handle;
+  image_transport::Publisher _output_img_pub;
 
   void getRosParam();
   void getVidParam();
@@ -72,7 +76,8 @@ class LaneDetector {
 
   void cannyDetector(Mat &input, Mat &output);
   void segmentRoi(Mat &input, Mat &output);
-  void calcHoughLines(Mat &input, Mat &output);
+  void calcHoughLines(Mat &input, Vec2d &left_lane_avg_param, Vec2d &right_lane_avg_param);
+  void overlayLanesToImg(Mat &input, Vec2d &left_lane_avg_param, Vec2d &right_lane_avg_param);
   void calcGradientIntercept(Vec4i &line, std::vector<Vec2d> &left_lanes,
                              std::vector<Vec2d> &right_lanes);
   Vec2d calcVec2dAverage(std::vector<Vec2d> &vec);
