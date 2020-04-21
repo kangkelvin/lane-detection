@@ -3,7 +3,7 @@ By Kelvin Kang
 
 This is a lane detection with OpenCV canny edge and hough transform with ros wrapper
 
-![](/home/kelvin/voyager_ws/src/lane-detection/data/screenshot.png)
+![](data/screenshot.png)
 
 ## System Dependencies
 * Ubuntu 18.04.4 LTS
