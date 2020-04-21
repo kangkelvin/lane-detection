@@ -10,6 +10,7 @@ LaneDetector::LaneDetector() : private_nh("~"), _img_transport_handle(nh) {
   setPubSub();
 }
 
+// main callback that processes incoming image from ros topic
 void LaneDetector::detectLaneCb(const sensor_msgs::Image &msg) {
   _original_img = cv_bridge::toCvCopy(msg, "bgr8")->image;
   resize(_original_img, _original_img, Size(1280, 720));
@@ -20,6 +21,7 @@ void LaneDetector::detectLaneCb(const sensor_msgs::Image &msg) {
   calcHoughLines(_processed_img, _left_lane_avg_param, _right_lane_avg_param);
   overlayLanesToImg(_original_img, _left_lane_avg_param, _right_lane_avg_param);
 
+  // convert to sensor_msgs::Image to be published in ros topic
   _output_img = cv_bridge::CvImage(std_msgs::Header(), "bgr8", _original_img)
                     .toImageMsg();
   _working_img = cv_bridge::CvImage(std_msgs::Header(), "mono8", _processed_img)
@@ -28,6 +30,7 @@ void LaneDetector::detectLaneCb(const sensor_msgs::Image &msg) {
   _working_img_pub.publish(_working_img);
 }
 
+// turns image to greyscale and detect edges
 void LaneDetector::cannyDetector(Mat &input, Mat &output) {
   cvtColor(input, output, COLOR_RGB2GRAY);  // change to grayscale
   GaussianBlur(input, output, Size(_gauss_blur_size[0], _gauss_blur_size[1]),
@@ -35,6 +38,7 @@ void LaneDetector::cannyDetector(Mat &input, Mat &output) {
   Canny(input, output, _canny_threshold1, _canny_threshold2);  // detects edges
 }
 
+// black out irrelevant portion of the image, using a triangular ROI space
 void LaneDetector::segmentRoi(Mat &input, Mat &output) {
   getVidParam();
   int frame_type = input.type();
@@ -52,6 +56,7 @@ void LaneDetector::segmentRoi(Mat &input, Mat &output) {
   bitwise_and(input, mask, output);
 }
 
+// calculate x-y pairs using hough lines from edges
 void LaneDetector::calcHoughLines(Mat &input, Vec2d &left_lane_avg_param,
                                   Vec2d &right_lane_avg_param) {
   std::vector<Vec4i> lines;
@@ -72,10 +77,12 @@ void LaneDetector::calcHoughLines(Mat &input, Vec2d &left_lane_avg_param,
   std::for_each(threads.begin(), threads.end(),
                 [](std::thread &t) { t.join(); });
 
+  // calculate the average of all the hough lines found
   left_lane_avg_param = calcVec2dAverage(left_lanes);
   right_lane_avg_param = calcVec2dAverage(right_lanes);
 }
 
+// overlay the average left and right lane lines to original image
 void LaneDetector::overlayLanesToImg(Mat &input, Vec2d &left_lane_avg_param,
                                      Vec2d &right_lane_avg_param) {
   Mat left_line = getVisualisedLines(input, left_lane_avg_param);
@@ -84,6 +91,7 @@ void LaneDetector::overlayLanesToImg(Mat &input, Vec2d &left_lane_avg_param,
   addWeighted(input, 0.9, left_line, 1.0, 0.5, input);
 }
 
+// convert x-y pairs to gradient and intercept pairs
 void LaneDetector::calcGradientIntercept(Vec4i line,
                                          std::vector<Vec2d> &left_lanes,
                                          std::vector<Vec2d> &right_lanes,
@@ -100,6 +108,7 @@ void LaneDetector::calcGradientIntercept(Vec4i line,
   }
 }
 
+// calculate the average of a vector of double
 Vec2d LaneDetector::calcVec2dAverage(vector<Vec2d> &vec) {
   Vec2d output;
   if (!vec.empty()) {
@@ -116,6 +125,7 @@ Vec2d LaneDetector::calcVec2dAverage(vector<Vec2d> &vec) {
   return output;
 }
 
+// create a Mat from a pair of gradient and intercept data
 Mat LaneDetector::getVisualisedLines(Mat &input, Vec2d &lane_info) {
   double x1, x2, y1, y2;
   Mat visualised_line = Mat::zeros(Size(_frame_width, _frame_height), CV_8UC3);

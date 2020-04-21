@@ -16,11 +16,6 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
 )
 
-add_message_files(
-  FILES
-  LaneInfo.msg
-)
-
 generate_messages(
   DEPENDENCIES
   std_msgs
