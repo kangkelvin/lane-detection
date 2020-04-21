@@ -37,6 +37,7 @@ class LaneDetector {
   Mat _original_img;
   Mat _processed_img;
   sensor_msgs::ImagePtr _output_img;
+  sensor_msgs::ImagePtr _working_img;
 
   vector<int> _gauss_blur_size;
   double _gauss_blur_sigmaX;
@@ -62,10 +63,12 @@ class LaneDetector {
 
   std::string _input_img_topic;
   std::string _output_img_topic;
-  ros::Subscriber _input_img_sub;
+  std::string _working_img_topic;
 
+  ros::Subscriber _input_img_sub;
   image_transport::ImageTransport _img_transport_handle;
   image_transport::Publisher _output_img_pub;
+  image_transport::Publisher _working_img_pub;
 
   void getRosParam();
   void getVidParam();

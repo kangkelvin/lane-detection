@@ -18,15 +18,20 @@ LaneDetector::~LaneDetector() {
 
 void LaneDetector::detectLane(const sensor_msgs::Image &msg) {
   _original_img = cv_bridge::toCvCopy(msg, "bgr8")->image;
+  resize(_original_img, _original_img, Size(1280, 720));
   _original_img.copyTo(_processed_img);
 
   cannyDetector(_processed_img, _processed_img);
   segmentRoi(_processed_img, _processed_img);
   calcHoughLines(_processed_img, _left_lane_avg_param, _right_lane_avg_param);
   overlayLanesToImg(_original_img, _left_lane_avg_param, _right_lane_avg_param);
-  _output_img = cv_bridge::CvImage(std_msgs::Header(), "mono8", _processed_img)
+  
+  _output_img = cv_bridge::CvImage(std_msgs::Header(), "bgr8", _original_img)
+                    .toImageMsg();
+  _working_img = cv_bridge::CvImage(std_msgs::Header(), "mono8", _processed_img)
                     .toImageMsg();
   _output_img_pub.publish(_output_img);
+  _working_img_pub.publish(_working_img);
 }
 
 void LaneDetector::cannyDetector(Mat &input, Mat &output) {
@@ -84,7 +89,7 @@ void LaneDetector::overlayLanesToImg(Mat &input, Vec2d &left_lane_avg_param,
   Mat left_line = getVisualisedLines(input, left_lane_avg_param);
   Mat right_line = getVisualisedLines(input, right_lane_avg_param);
   add(left_line, right_line, left_line);
-  addWeighted(input, 0.9, left_line, 1, 1, input);
+  addWeighted(input, 0.9, left_line, 1.0, 0.5, input);
 }
 
 void LaneDetector::calcGradientIntercept(Vec4i &line,
@@ -94,15 +99,18 @@ void LaneDetector::calcGradientIntercept(Vec4i &line,
   double intercept = line[1] - gradient * line[0];
   Vec2d output = {gradient, intercept};
   if (gradient > 0) {
-    if (withinRange(gradient, 0.8, 1.4) && withinRange(intercept, -700, -100)) {
-      right_lanes.push_back(output);
-    }
+    // if (withinRange(gradient, 0.8, 1.4) && withinRange(intercept, -700,
+    // -100)) {
+    //   right_lanes.push_back(output);
+    // }
+    right_lanes.push_back(output);
 
   } else {
-    if (withinRange(gradient, -1.2, -0.7) &&
-        withinRange(intercept, 1300, 1800)) {
-      left_lanes.push_back(output);
-    }
+    // if (withinRange(gradient, -1.2, -0.7) &&
+    //     withinRange(intercept, 1300, 1800)) {
+    //   left_lanes.push_back(output);
+    // }
+    left_lanes.push_back(output);
   }
 }
 
@@ -124,13 +132,13 @@ Vec2d LaneDetector::calcVec2dAverage(vector<Vec2d> &vec) {
 
 Mat LaneDetector::getVisualisedLines(Mat &input, Vec2d &lane_info) {
   double x1, x2, y1, y2;
-  Mat visualised_line;
-  y1 = input.rows;
-  y2 = input.rows * 0.7;
+  Mat visualised_line = Mat::zeros(Size(_frame_width, _frame_height), CV_8UC3);
+  y1 = _frame_height;
+  y2 = _frame_height * 0.7;
   x1 = (y1 - lane_info[1]) / lane_info[0];
   x2 = (y2 - lane_info[1]) / lane_info[0];
-  line(input, Point(x1, y1), Point(x2, y2), Scalar(0, 255, 0), 5);
-  return visualised_line;
+  line(visualised_line, Point(x1, y1), Point(x2, y2), Scalar(0, 255, 0), 5);
+  return std::move(visualised_line);
 }
 
 bool LaneDetector::withinRange(double input, double lower_bound,
@@ -141,18 +149,19 @@ bool LaneDetector::withinRange(double input, double lower_bound,
 void LaneDetector::getRosParam() {
   ROS_ASSERT(private_nh.getParam("input_img_topic", _input_img_topic));
   ROS_ASSERT(private_nh.getParam("output_img_topic", _output_img_topic));
+  ROS_ASSERT(private_nh.getParam("working_img_topic", _working_img_topic));
 
   private_nh.param("gauss_blur_size", _gauss_blur_size, {5, 5});
   private_nh.param("gauss_blur_sigmaX", _gauss_blur_sigmaX, 0.0);
   private_nh.param("canny_threshold1", _canny_threshold1, 150.0);
   private_nh.param("canny_threshold2", _canny_threshold2, 150.0);
-  private_nh.param("roi_btm_left_ratio", _roi_btm_left_ratio, {0.2, 0.9});
-  private_nh.param("roi_top_ratio", _roi_top_ratio, {0.45, 0.6});
-  private_nh.param("roi_btm_right_ratio", _roi_btm_right_ratio, {0.7, 0.9});
+  private_nh.param("roi_btm_left_ratio", _roi_btm_left_ratio, {0.35, 0.9});
+  private_nh.param("roi_top_ratio", _roi_top_ratio, {0.7, 0.4});
+  private_nh.param("roi_btm_right_ratio", _roi_btm_right_ratio, {0.9, 0.9});
   private_nh.param("hough_rho", _hough_rho, 1.0);
   private_nh.param("hough_theta", _hough_theta, CV_PI / 180);
   private_nh.param("hough_thershold", _hough_thershold, 50.0);
-  private_nh.param("hough_min_line_length", _hough_min_line_length, 50.0);
+  private_nh.param("hough_min_line_length", _hough_min_line_length, 20.0);
   private_nh.param("hough_max_line_gap", _hough_max_line_gap, 10.0);
 }
 
@@ -165,9 +174,10 @@ void LaneDetector::setPubSub() {
   _input_img_sub =
       nh.subscribe(_input_img_topic, 1, &LaneDetector::detectLane, this);
   _output_img_pub = _img_transport_handle.advertise(_output_img_topic, 1);
+  _working_img_pub = _img_transport_handle.advertise(_working_img_topic, 1);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ros::init(argc, argv, "lane_detector_node");
   laneDetection::LaneDetector lane_detector_obj;
   while (ros::ok()) {
