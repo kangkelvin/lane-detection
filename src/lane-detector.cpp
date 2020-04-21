@@ -10,7 +10,7 @@ LaneDetector::LaneDetector() : private_nh("~"), _img_transport_handle(nh) {
   setPubSub();
 }
 
-void LaneDetector::detectLane(const sensor_msgs::Image &msg) {
+void LaneDetector::detectLaneCb(const sensor_msgs::Image &msg) {
   _original_img = cv_bridge::toCvCopy(msg, "bgr8")->image;
   resize(_original_img, _original_img, Size(1280, 720));
   _original_img.copyTo(_processed_img);
@@ -127,11 +127,6 @@ Mat LaneDetector::getVisualisedLines(Mat &input, Vec2d &lane_info) {
   return std::move(visualised_line);
 }
 
-bool LaneDetector::withinRange(double input, double lower_bound,
-                               double upper_bound) {
-  return (input > lower_bound) && (input < upper_bound);
-}
-
 void LaneDetector::getRosParam() {
   ROS_ASSERT(private_nh.getParam("input_img_topic", _input_img_topic));
   ROS_ASSERT(private_nh.getParam("output_img_topic", _output_img_topic));
@@ -158,7 +153,7 @@ void LaneDetector::getVidParam() {
 
 void LaneDetector::setPubSub() {
   _input_img_sub =
-      nh.subscribe(_input_img_topic, 1, &LaneDetector::detectLane, this);
+      nh.subscribe(_input_img_topic, 1, &LaneDetector::detectLaneCb, this);
   _output_img_pub = _img_transport_handle.advertise(_output_img_topic, 1);
   _working_img_pub = _img_transport_handle.advertise(_working_img_topic, 1);
 }

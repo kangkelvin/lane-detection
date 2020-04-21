@@ -72,7 +72,7 @@ class LaneDetector {
   void getRosParam();
   void getVidParam();
   void setPubSub();
-  void detectLane(const sensor_msgs::Image& msg);
+  void detectLaneCb(const sensor_msgs::Image& msg);
 
   void cannyDetector(Mat &input, Mat &output);
   void segmentRoi(Mat &input, Mat &output);
@@ -82,7 +82,6 @@ class LaneDetector {
                              std::vector<Vec2d> &right_lanes, std::mutex &mtx);
   Vec2d calcVec2dAverage(std::vector<Vec2d> &vec);
   Mat getVisualisedLines(Mat &input, Vec2d &lane_info);
-  bool withinRange(double input, double lower_bound, double upper_bound);
 
 };
 
